@@ -7,7 +7,6 @@ import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.{GeneratePresignedUrlRequest, ObjectMetadata, PutObjectRequest}
 import com.amazonaws.util.IOUtils
 import response.Response
-import response.Response.PhotoUrl
 
 object PhotoService {
 
@@ -56,7 +55,7 @@ class PhotoService(s3Client: AmazonS3, bucketName: String) extends Actor with Ac
       val contents = IOUtils.toByteArray(inputStream)
       val byteArrayInputStream = new ByteArrayInputStream(contents)
 
-      log.info("uploading a file '{}' for user '{}'", fileName, userId)
+      log.info("Uploading a file '{}' for user '{}'", fileName, userId)
 
       val objectName = s"$userId/$fileName"
 
@@ -71,8 +70,8 @@ class PhotoService(s3Client: AmazonS3, bucketName: String) extends Actor with Ac
         inputStream.close()
         val url = s3Client.generatePresignedUrl(new GeneratePresignedUrlRequest(bucketName, objectName)).toString
 
-        log.info("Uploading done. Returning url")
-        sender() ! Right(PhotoUrl(200, url))
+        log.info("Uploading done. Returning OK")
+        sender() ! Right(Response.Accepted(200, "OK"))
 
       } else {
         log.info("Failed to load a file '{}' for user '{}'. Responding with status 409.", fileName, userId)
