@@ -68,13 +68,20 @@ object Boot extends App with JsonSupport {
               }
           }
         },
-        //        path(Segment) { fileName =>
-        // TODO: implement GET method
-        // ex: GET localhost:8081/photo/user-12/2.png
+        path(Segment) { fileName =>
+          concat(
+            delete {
+              complete(
+                (photoService ? PhotoService.DeletePhoto(userId, fileName)).mapTo[Either[Response.Error, Response.Accepted]]
+              )
+            }
+          )
+          //         TODO: implement GET method
+          // ex: GET localhost:8081/photo/user-12/2.png
 
-        // TODO: implement DELETE method
-        // ex: DELETE localhost:8081/photo/user-12/6.png
-        //        }
+          // TODO: implement DELETE method
+          // ex: DELETE localhost:8081/photo/user-12/6.png
+        }
       )
     }
   }

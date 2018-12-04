@@ -80,13 +80,18 @@ class PhotoService(s3Client: AmazonS3, bucketName: String) extends Actor with Ac
       }
 
     case DeletePhoto(userId, fileName) =>
-    // TODO: implement this functionality
-    // Check if such object exists on AWS
-    // If exists => respond with Accepted where status code is 200 and message is `OK`
-    // If does not exist => respond with Error where status code is 404 and message is `Photo not found`
 
+      val objectName = s"$userId/$fileName"
 
-    // photo object's fullPath is the same as in previous methods (GetPhoto and UploadPhoto)
+      log.info("deleting a file '{}' for user '{}'", fileName, userId)
 
+      if (s3Client.doesObjectExist(bucketName, objectName)) {
+        s3Client.deleteObject(bucketName, objectName)
+        log.info("delete success")
+        sender() ! Right(Response.Accepted(200, "OK"))
+      } else {
+        log.info("delete failure")
+        sender() ! Left(Response.Error(404, "Photo not found"))
+      }
   }
 }
