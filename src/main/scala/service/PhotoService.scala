@@ -4,18 +4,24 @@ import java.io.{ByteArrayInputStream, InputStream}
 
 import akka.actor.{Actor, ActorLogging, Props}
 import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.services.s3.model.ObjectMetadata
+import com.amazonaws.services.s3.model.{GeneratePresignedUrlRequest, ObjectMetadata, PutObjectRequest}
 import com.amazonaws.util.IOUtils
 import response.Response
+import response.Response.PhotoUrl
 
 object PhotoService {
+
   case class UploadPhoto(inputStream: InputStream, userId: String, fileName: String)
+
   case class GetPhoto(userId: String, fineName: String)
+
   case class DeletePhoto(userId: String, fineName: String)
+
   def props(s3Client: AmazonS3, bucketName: String) = Props(new PhotoService(s3Client, bucketName))
 }
 
 class PhotoService(s3Client: AmazonS3, bucketName: String) extends Actor with ActorLogging {
+
   import PhotoService._
 
   override def receive: Receive = {
@@ -46,23 +52,41 @@ class PhotoService(s3Client: AmazonS3, bucketName: String) extends Actor with Ac
       }
 
     case UploadPhoto(inputStream, userId, fileName) =>
-      // TODO: implement this functionality
-      // photo object's fullPath inside bucket must be `userId/photoFileName`
-      // ex: userId = user-2, fileName = photo.jpg => object path inside bucket must be `user-2/photo.jpg`
 
+      val contents = IOUtils.toByteArray(inputStream)
+      val byteArrayInputStream = new ByteArrayInputStream(contents)
 
-      // TODO: check that file exists or not
-      // If such file exists => respond with Error where status is 409 and message is `Such file already exists`
-      // Otherwise => respond with Accepted where status is 200 and message is `OK`
+      log.info("uploading a file '{}' for user '{}'", fileName, userId)
+
+      val objectName = s"$userId/$fileName"
+
+      if (!s3Client.doesObjectExist(bucketName, objectName)) {
+
+        val meta = new ObjectMetadata()
+        meta.setContentLength(contents.length)
+        log.info("photo kength: {}", contents.length)
+        meta.setContentType("image/png")
+
+        s3Client.putObject(new PutObjectRequest(bucketName, objectName, byteArrayInputStream, meta))
+        inputStream.close()
+        val url = s3Client.generatePresignedUrl(new GeneratePresignedUrlRequest(bucketName, objectName)).toString
+
+        log.info("Uploading done. Returning url")
+        sender() ! Right(PhotoUrl(200, url))
+
+      } else {
+        log.info("Failed to load a file '{}' for user '{}'. Responding with status 409.", fileName, userId)
+        sender() ! Left(Response.Error(409, "Such file already exists"))
+      }
 
     case DeletePhoto(userId, fileName) =>
-      // TODO: implement this functionality
-      // Check if such object exists on AWS
-      // If exists => respond with Accepted where status code is 200 and message is `OK`
-      // If does not exist => respond with Error where status code is 404 and message is `Photo not found`
+    // TODO: implement this functionality
+    // Check if such object exists on AWS
+    // If exists => respond with Accepted where status code is 200 and message is `OK`
+    // If does not exist => respond with Error where status code is 404 and message is `Photo not found`
 
 
-      // photo object's fullPath is the same as in previous methods (GetPhoto and UploadPhoto)
+    // photo object's fullPath is the same as in previous methods (GetPhoto and UploadPhoto)
 
   }
 }
